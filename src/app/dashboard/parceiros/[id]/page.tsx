@@ -66,8 +66,8 @@ export default function PartnerDetailPage() {
                 setPartner(mockPartner);
 
                 setProducts([
-                    { id: 'p1', name: 'ONU Huawei EG8141A5', brand: 'Huawei', model: 'EG', category: 'ONU', condition: 'Usado', serialNumber: 'SN1', price: 150, status: 'disponivel', partnerId: id as string, partnerName: 'NetLink', images: [], createdAt: new Date() } as Product,
-                    { id: 'p2', name: 'Switch Cisco 2960', brand: 'Cisco', model: '2960', category: 'Switch', condition: 'Usado', serialNumber: 'SN2', price: 800, status: 'vendido', partnerId: id as string, partnerName: 'NetLink', images: [], createdAt: new Date() } as Product,
+                    { id: 'p1', name: 'ONU Huawei EG8141A5', brand: 'Huawei', model: 'EG', category: 'ONU', condition: 'Usado', serialNumber: 'SN1', price: 150, status: 'disponivel', quantity: 5, partnerId: id as string, partnerName: 'NetLink', images: [], createdAt: new Date() } as Product,
+                    { id: 'p2', name: 'Switch Cisco 2960', brand: 'Cisco', model: '2960', category: 'Switch', condition: 'Usado', serialNumber: 'SN2', price: 800, status: 'vendido', quantity: 0, partnerId: id as string, partnerName: 'NetLink', images: [], createdAt: new Date() } as Product,
                 ]);
 
                 setSales([

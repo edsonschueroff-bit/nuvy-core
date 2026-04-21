@@ -46,7 +46,7 @@ export default function VendasPage() {
                 { id: '2', productId: 'p2', productName: 'OLT Datacom DM4610', partnerId: '1', partnerName: 'NetLink Telecom', marketplace: 'Venda Direta', salePrice: 8500, commissionRate: 20, commissionValue: 1700, partnerValue: 6800, buyerName: 'Telecom XYZ', status: 'enviado', saleDate: new Date(Date.now() - 86400000), createdAt: new Date(Date.now() - 86400000) }
             ]);
             setProducts([
-                { id: 'p3', partnerId: '1', partnerName: 'NetLink Telecom', name: 'Switch Intelbras L2', brand: 'Intelbras', model: 'SG 2404 MR', category: 'Switch', condition: 'Usado', price: 450, status: 'disponivel', description: '', createdAt: new Date() } as Product
+                { id: 'p3', partnerId: '1', partnerName: 'NetLink Telecom', name: 'Switch Intelbras L2', brand: 'Intelbras', model: 'SG 2404 MR', category: 'Switch', condition: 'Usado', price: 450, status: 'disponivel', quantity: 3, description: '', createdAt: new Date() } as Product
             ]);
             setLoading(false);
             return;
