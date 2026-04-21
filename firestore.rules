@@ -1,0 +1,66 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Função auxiliar para verificar se é ADMIN
+    function isAdmin() {
+      return request.auth != null && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+      );
+    }
+    
+    // Função auxiliar para verificar se o dado pertence ao PARCEIRO logado
+    function isOwner(partnerId) {
+      return request.auth != null && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.partnerId == partnerId
+      );
+    }
+
+    // Regras para USUÁRIOS
+    match /users/{userId} {
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // Regras para PARCEIROS
+    match /partners/{partnerId} {
+      allow read: if request.auth != null && (isOwner(partnerId) || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // Regras para PRODUTOS
+    match /products/{productId} {
+      allow read: if request.auth != null && (isOwner(resource.data.partnerId) || isAdmin());
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Regras para VENDAS
+    match /sales/{saleId} {
+      allow read: if request.auth != null && (isOwner(resource.data.partnerId) || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // Regras para TRANSAÇÕES (LEDGER) - IMUTÁVEIS
+    match /transactions/{txId} {
+      allow read: if request.auth != null && (isOwner(resource.data.partnerId) || isAdmin());
+      allow create: if isAdmin();
+      allow update, delete: if false; // Ninguém, nem o admin, apaga o rastro financeiro
+    }
+
+    // Regras para LOGS DE AUDITORIA
+    match /logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if request.auth != null; // Qualquer ação logada pode criar
+      allow update, delete: if false; // Logs são eternos
+    }
+
+    // Notificações
+    match /notifications/{notifId} {
+      allow read: if request.auth != null && (resource.data.userId == request.auth.uid || isAdmin());
+      allow write: if request.auth != null;
+    }
+  }
+}
