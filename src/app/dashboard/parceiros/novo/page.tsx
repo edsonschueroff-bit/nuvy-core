@@ -9,13 +9,11 @@ import {
     addDoc,
     serverTimestamp,
     getDocs,
-    setDoc,
-    doc,
     query,
     where
 } from 'firebase/firestore';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { db, auth } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
+import { provisionPartnerAccess } from '@/lib/partner-access';
 import {
     Users,
     ArrowLeft,
@@ -112,17 +110,13 @@ export default function NovoParceiroPage() {
                 createdAt: serverTimestamp(),
             });
 
-            // 2.5 Create Auth User & User Profile
+            // 2.5 Create Auth User & User Profile without swapping the current admin session
             if (formData.loginEmail && formData.loginPassword) {
-                const userCred = await createUserWithEmailAndPassword(auth, formData.loginEmail, formData.loginPassword);
-
-                await setDoc(doc(db, 'users', userCred.user.uid), {
-                    email: formData.loginEmail,
-                    name: formData.contactName,
-                    role: 'parceiro',
+                await provisionPartnerAccess({
+                    loginEmail: formData.loginEmail,
+                    loginPassword: formData.loginPassword,
+                    contactName: formData.contactName,
                     partnerId: partnerRef.id,
-                    isActive: true,
-                    createdAt: serverTimestamp(),
                 });
             }
 
@@ -138,9 +132,9 @@ export default function NovoParceiroPage() {
             setSuccess('Parceiro cadastrado com sucesso!');
             setTimeout(() => router.push('/dashboard/parceiros'), 2000);
 
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Erro ao cadastrar parceiro:', err);
-            setError(err.message || 'Erro ao salvar. Tente novamente.');
+            setError(err instanceof Error ? err.message : 'Erro ao salvar. Tente novamente.');
         } finally {
             setLoading(false);
         }

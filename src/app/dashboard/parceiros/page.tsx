@@ -12,10 +12,10 @@ import {
     doc,
     serverTimestamp,
 } from 'firebase/firestore';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { db, auth } from '@/lib/firebase';
+import { db, isFirebaseConfigured } from '@/lib/firebase';
 import { Partner } from '@/types';
 import { formatCurrency } from '@/lib/utils';
+import { provisionPartnerAccess } from '@/lib/partner-access';
 import {
     Users,
     Plus,
@@ -61,7 +61,6 @@ const emptyForm: PartnerFormData = {
 
 export default function ParceirosPage() {
     const { isAdmin, demoMode } = useAuth();
-    const { isFirebaseConfigured } = require('@/lib/firebase');
     const router = useRouter();
     const [partners, setPartners] = useState<Partner[]>([]);
     const [loading, setLoading] = useState(true);
@@ -170,15 +169,11 @@ export default function ParceirosPage() {
                 // Create user for partner login (if credentials provided)
                 if (form.loginEmail && form.loginPassword) {
                     try {
-                        const userCred = await createUserWithEmailAndPassword(auth, form.loginEmail, form.loginPassword);
-                        // Save user profile
-                        const { setDoc } = await import('firebase/firestore');
-                        await setDoc(doc(db, 'users', userCred.user.uid), {
-                            email: form.loginEmail,
-                            name: form.contactName,
-                            role: 'parceiro',
+                        await provisionPartnerAccess({
+                            loginEmail: form.loginEmail,
+                            loginPassword: form.loginPassword,
+                            contactName: form.contactName,
                             partnerId: partnerRef.id,
-                            createdAt: serverTimestamp(),
                         });
                     } catch (authErr: unknown) {
                         const msg = authErr instanceof Error ? authErr.message : '';

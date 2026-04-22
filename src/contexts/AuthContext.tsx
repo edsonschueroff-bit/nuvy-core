@@ -1,13 +1,13 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import {
     onAuthStateChanged,
     signInWithEmailAndPassword,
     signOut as firebaseSignOut,
     User,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { auth, db, isFirebaseConfigured } from '@/lib/firebase';
 import { UserProfile } from '@/types';
 
@@ -29,77 +29,62 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [profile, setProfile] = useState<UserProfile | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(isFirebaseConfigured);
     const [error, setError] = useState<string | null>(null);
-    const [demoMode, setDemoMode] = useState(false);
+    const [demoMode, setDemoMode] = useState(!isFirebaseConfigured);
 
     useEffect(() => {
         if (!isFirebaseConfigured) {
-            setLoading(false);
             return;
         }
 
-        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-            setUser(firebaseUser);
-            setError(null);
+        const unsubscribe = onAuthStateChanged(
+            auth,
+            async (firebaseUser) => {
+                setUser(firebaseUser);
+                setError(null);
 
-            if (firebaseUser) {
-                // SUPER BYPASS: Se for o dono, libera acesso Admin imediatamente para não travar
-                if (firebaseUser.email === 'edsonschueroff@gmail.com') {
-                    setProfile({
-                        uid: firebaseUser.uid,
-                        email: firebaseUser.email,
-                        name: 'Edson (Admin)',
-                        role: 'admin',
-                        createdAt: new Date(),
-                    });
+                if (!firebaseUser) {
+                    setProfile(null);
                     setLoading(false);
+                    return;
                 }
 
                 try {
                     const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-                    if (userDoc.exists()) {
-                        const data = userDoc.data();
-                        setProfile({
-                            uid: firebaseUser.uid,
-                            email: data.email,
-                            name: data.name,
-                            role: data.role,
-                            partnerId: data.partnerId,
-                            createdAt: data.createdAt?.toDate?.() || new Date(),
-                        });
-                    } else {
-                        // AUTO-CREATE PROFILE: If user is authenticated but has no profile, create one as admin (first setup)
-                        const newProfile = {
-                            email: firebaseUser.email || '',
-                            name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Administrador',
-                            role: firebaseUser.email === 'edsonschueroff@gmail.com' ? 'admin' : 'parceiro',
-                            createdAt: serverTimestamp(),
-                        };
 
-                        await setDoc(doc(db, 'users', firebaseUser.uid), newProfile);
-
-                        setProfile({
-                            uid: firebaseUser.uid,
-                            email: newProfile.email,
-                            name: newProfile.name,
-                            role: (firebaseUser.email === 'edsonschueroff@gmail.com' ? 'admin' : 'parceiro') as any,
-                            createdAt: new Date(),
-                        });
+                    if (!userDoc.exists()) {
+                        setProfile(null);
+                        setError(
+                            'Seu usuário autenticado não possui perfil cadastrado. Solicite liberação ao administrador.'
+                        );
+                        setLoading(false);
+                        return;
                     }
-                } catch (error) {
-                    console.error('Erro ao carregar perfil:', error);
-                }
-            } else {
-                setProfile(null);
-            }
 
-            setLoading(false);
-        }, (err) => {
-            console.error('Erro Auth:', err);
-            setError(err.message);
-            setLoading(false);
-        });
+                    const data = userDoc.data();
+                    setProfile({
+                        uid: firebaseUser.uid,
+                        email: data.email,
+                        name: data.name,
+                        role: data.role,
+                        partnerId: data.partnerId,
+                        createdAt: data.createdAt?.toDate?.() || new Date(),
+                    });
+                } catch (loadError) {
+                    console.error('Erro ao carregar perfil:', loadError);
+                    setProfile(null);
+                    setError('Não foi possível carregar seu perfil.');
+                }
+
+                setLoading(false);
+            },
+            (authError) => {
+                console.error('Erro Auth:', authError);
+                setError(authError.message);
+                setLoading(false);
+            }
+        );
 
         return () => unsubscribe();
     }, []);
@@ -108,38 +93,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!isFirebaseConfigured) {
             throw new Error('Firebase não configurado. Use o modo demo.');
         }
+
+        setDemoMode(false);
         await signInWithEmailAndPassword(auth, email, password);
     };
 
     const signOut = async () => {
         if (demoMode) {
+            setUser(null);
             setProfile(null);
             setDemoMode(false);
             return;
         }
+
         await firebaseSignOut(auth);
         setProfile(null);
     };
 
     const enableDemoMode = (role: 'admin' | 'parceiro') => {
+        setUser(null);
+        setError(null);
+        setLoading(false);
         setDemoMode(true);
         setProfile({
             uid: 'demo-user',
             email: role === 'admin' ? 'admin@equipanet.com' : 'parceiro@demo.com',
             name: role === 'admin' ? 'Administrador' : 'Empresa Demo',
-            role: role,
+            role,
             partnerId: role === 'parceiro' ? 'demo-partner-id' : undefined,
             createdAt: new Date(),
         });
     };
 
-    const isAdmin = profile?.role === 'admin' || user?.email === 'edsonschueroff@gmail.com';
+    const isAdmin = profile?.role === 'admin';
 
     return (
-        <AuthContext.Provider value={{
-            user, profile, loading, error, signIn, signOut, isAdmin,
-            isConfigured: isFirebaseConfigured, demoMode, enableDemoMode,
-        }}>
+        <AuthContext.Provider
+            value={{
+                user,
+                profile,
+                loading,
+                error,
+                signIn,
+                signOut,
+                isAdmin,
+                isConfigured: isFirebaseConfigured,
+                demoMode,
+                enableDemoMode,
+            }}
+        >
             {children}
         </AuthContext.Provider>
     );

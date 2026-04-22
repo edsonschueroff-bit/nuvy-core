@@ -1,20 +1,20 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from './AuthContext';
 import {
-    collection,
-    query,
-    where,
-    orderBy,
-    onSnapshot,
-    doc,
-    updateDoc,
     addDoc,
+    collection,
+    doc,
+    onSnapshot,
+    orderBy,
+    query,
     serverTimestamp,
+    updateDoc,
+    where,
     writeBatch
 } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db, isFirebaseConfigured } from '@/lib/firebase';
 import { Notification, NotificationType } from '@/types';
 
 interface NotificationContextType {
@@ -28,47 +28,48 @@ interface NotificationContextType {
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
+const demoNotificationsFor = (userId: string): Notification[] => [
+    {
+        id: '1',
+        userId,
+        title: 'Bem-vindo ao Nuvy Core!',
+        message: 'Esta é uma notificação de demonstração da sua nova plataforma de ativos.',
+        type: 'success',
+        read: false,
+        createdAt: new Date()
+    },
+    {
+        id: '2',
+        userId,
+        title: 'Repasse Disponível',
+        message: 'Você tem um novo repasse pendente de R$ 4.500,00.',
+        type: 'info',
+        link: '/dashboard/financeiro',
+        read: false,
+        createdAt: new Date(Date.now() - 3600000)
+    }
+];
+
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
     const { profile, demoMode } = useAuth();
-    const { isFirebaseConfigured } = require('@/lib/firebase');
-    const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [notifications, setNotifications] = useState<Notification[] | null>(null);
 
-    const unreadCount = notifications.filter(n => !n.read).length;
+    const isDemoSession = Boolean(profile) && (!isFirebaseConfigured || demoMode);
+    const visibleNotifications = profile
+        ? (isDemoSession ? demoNotificationsFor(profile.uid) : notifications ?? [])
+        : [];
+    const unreadCount = visibleNotifications.filter(n => !n.read).length;
 
     useEffect(() => {
         if (!profile) {
-            setNotifications([]);
-            setLoading(false);
             return;
         }
 
-        if (!isFirebaseConfigured || demoMode) {
-            // Mock notifications for demo
-            setNotifications([
-                {
-                    id: '1',
-                    userId: profile.uid,
-                    title: 'Bem-vindo ao Nuvy Core!',
-                    message: 'Esta é uma notificação de demonstração de sua nova plataforma de ativos.',
-                    type: 'success',
-                    read: false,
-                    createdAt: new Date()
-                },
-                {
-                    id: '2',
-                    userId: profile.uid,
-                    title: 'Repasse Disponível',
-                    message: 'Você tem um novo repasse pendente de R$ 4.500,00.',
-                    type: 'info',
-                    link: '/dashboard/financeiro',
-                    read: false,
-                    createdAt: new Date(Date.now() - 3600000)
-                }
-            ]);
-            setLoading(false);
+        if (isDemoSession) {
             return;
         }
+
+        setLoading(true);
 
         const q = query(
             collection(db, 'notifications'),
@@ -77,17 +78,16 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data(),
-                createdAt: doc.data().createdAt?.toDate?.() || new Date(),
+            const data = snapshot.docs.map(item => ({
+                id: item.id,
+                ...item.data(),
+                createdAt: item.data().createdAt?.toDate?.() || new Date(),
             })) as Notification[];
             setNotifications(data);
-            setLoading(false);
         });
 
         return () => unsubscribe();
-    }, [profile, demoMode, isFirebaseConfigured]);
+    }, [profile, isDemoSession]);
 
     const markAsRead = async (id: string) => {
         if (!isFirebaseConfigured || demoMode) {
@@ -112,7 +112,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     const addNotification = async (userId: string, title: string, message: string, type: NotificationType, link?: string) => {
         if (!isFirebaseConfigured || demoMode) {
             const newNotif: Notification = {
-                id: Math.random().toString(36).substr(2, 9),
+                id: Math.random().toString(36).slice(2, 11),
                 userId,
                 title,
                 message,
@@ -137,9 +137,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
     return (
         <NotificationContext.Provider value={{
-            notifications,
+            notifications: visibleNotifications,
             unreadCount,
-            loading,
+            loading: Boolean(profile) && !isDemoSession && notifications === null,
             markAsRead,
             markAllAsRead,
             addNotification

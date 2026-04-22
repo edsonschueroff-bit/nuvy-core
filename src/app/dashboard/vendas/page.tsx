@@ -1,16 +1,24 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotifications } from '@/contexts/NotificationContext';
 import {
-    collection, getDocs, getDoc, addDoc, updateDoc, doc, query, where, serverTimestamp, increment,
+    collection,
+    doc,
+    getDocs,
+    increment,
+    query,
+    runTransaction,
+    serverTimestamp,
+    updateDoc,
+    where,
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '@/lib/firebase';
 import { Product, Sale } from '@/types';
 import { formatCurrency, formatDate, getStatusColor, getStatusLabel } from '@/lib/utils';
 import {
-    ShoppingCart, Plus, Search, X, Loader2, AlertCircle, CheckCircle, Eye,
+    ShoppingCart, Plus, Search, X, Loader2, AlertCircle, CheckCircle,
 } from 'lucide-react';
 
 const marketplaces = ['Mercado Livre', 'Shopee', 'Amazon', 'OLX', 'Facebook Marketplace', 'Outros'];
@@ -53,20 +61,19 @@ export default function VendasPage() {
         }
 
         try {
-            // Sales
             let salesQuery = query(collection(db, 'sales'));
             if (!isAdmin && profile?.partnerId) {
                 salesQuery = query(collection(db, 'sales'), where('partnerId', '==', profile.partnerId));
             }
             const salesSnap = await getDocs(salesQuery);
             const salesData = salesSnap.docs.map(d => ({
-                id: d.id, ...d.data(),
+                id: d.id,
+                ...d.data(),
                 saleDate: d.data().saleDate?.toDate?.() || new Date(),
                 createdAt: d.data().createdAt?.toDate?.() || new Date(),
             })) as Sale[];
             setSales(salesData.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()));
 
-            // Available products for new sale
             let productsQuery = query(collection(db, 'products'), where('status', 'in', ['disponivel', 'anunciado']));
             if (!isAdmin && profile?.partnerId) {
                 productsQuery = query(
@@ -77,8 +84,8 @@ export default function VendasPage() {
             }
             const productsSnap = await getDocs(productsQuery);
             setProducts(productsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Product[]);
-        } catch (err) {
-            console.error(err);
+        } catch (fetchError) {
+            console.error(fetchError);
         } finally {
             setLoading(false);
         }
@@ -91,12 +98,15 @@ export default function VendasPage() {
 
         try {
             const product = products.find(p => p.id === form.productId);
-            if (!product) { setError('Produto não encontrado'); setSaving(false); return; }
+            if (!product) {
+                setError('Produto não encontrado');
+                setSaving(false);
+                return;
+            }
 
             if (!isFirebaseConfigured || demoMode) {
-                // Mock sale in demo mode
                 const newSale: Sale = {
-                    id: Math.random().toString(36).substr(2, 9),
+                    id: Math.random().toString(36).slice(2, 11),
                     productId: product.id,
                     productName: product.name,
                     partnerId: product.partnerId,
@@ -114,7 +124,6 @@ export default function VendasPage() {
 
                 setSales(prev => [newSale, ...prev]);
 
-                // Only remove from list if quantity becomes 0
                 const currentQty = product.quantity || 1;
                 if (currentQty <= 1) {
                     setProducts(prev => prev.filter(p => p.id !== product.id));
@@ -136,29 +145,90 @@ export default function VendasPage() {
                 return;
             }
 
-            // =========== 1. NOVO FLUXO SEGURO (SERVER ACTION) ===========
-            // Em vez de calcular no frontend, passamos a responsabilidade pro Backend
-            const { createSaleTransaction } = await import('@/app/actions/sales');
-            const result = await createSaleTransaction({
-                productId: product.id,
-                marketplace: form.marketplace,
-                salePrice: form.salePrice,
-                buyerName: form.buyerName,
-                adminId: profile?.uid || 'unknown'
+            const saleRef = doc(collection(db, 'sales'));
+            const transactionRef = doc(collection(db, 'transactions'));
+            const logRef = doc(collection(db, 'logs'));
+            const productRef = doc(db, 'products', product.id);
+            const partnerRef = doc(db, 'partners', product.partnerId);
+
+            await runTransaction(db, async (transaction) => {
+                const productSnap = await transaction.get(productRef);
+                if (!productSnap.exists()) {
+                    throw new Error('Produto não encontrado.');
+                }
+
+                const productData = productSnap.data();
+                const currentStatus = productData.status;
+                if (currentStatus !== 'disponivel' && currentStatus !== 'anunciado') {
+                    throw new Error('Este produto não está mais disponível para venda.');
+                }
+
+                const currentQuantity = Number(productData.quantity || 1);
+                if (currentQuantity <= 0) {
+                    throw new Error('Estoque esgotado para este produto.');
+                }
+
+                const partnerSnap = await transaction.get(partnerRef);
+                const commissionRate = Number(partnerSnap.data()?.commissionRate ?? 20);
+                const commissionValue = form.salePrice * (commissionRate / 100);
+                const partnerValue = form.salePrice - commissionValue;
+                const newQuantity = currentQuantity - 1;
+
+                transaction.set(saleRef, {
+                    productId: product.id,
+                    productName: product.name,
+                    partnerId: product.partnerId,
+                    partnerName: product.partnerName,
+                    marketplace: form.marketplace,
+                    salePrice: form.salePrice,
+                    commissionRate,
+                    commissionValue,
+                    partnerValue,
+                    buyerName: form.buyerName,
+                    status: 'pendente',
+                    saleDate: serverTimestamp(),
+                    createdAt: serverTimestamp(),
+                });
+
+                transaction.set(transactionRef, {
+                    type: 'SALE',
+                    partnerId: product.partnerId,
+                    partnerName: product.partnerName,
+                    productId: product.id,
+                    productName: product.name,
+                    grossValue: form.salePrice,
+                    commissionValue,
+                    netPartnerValue: partnerValue,
+                    description: `Venda via ${form.marketplace} - Comprador: ${form.buyerName}`,
+                    createdAt: serverTimestamp(),
+                });
+
+                transaction.set(logRef, {
+                    action: 'SALE_COMPLETED',
+                    entityId: saleRef.id,
+                    entityType: 'sale',
+                    description: `Produto ${product.name} vendido. Estoque restante: ${newQuantity}.`,
+                    createdAt: serverTimestamp(),
+                });
+
+                transaction.update(productRef, {
+                    quantity: newQuantity,
+                    status: newQuantity <= 0 ? 'vendido' : currentStatus,
+                    updatedAt: serverTimestamp(),
+                });
+
+                if (partnerSnap.exists()) {
+                    transaction.update(partnerRef, {
+                        totalSold: increment(1),
+                        totalRevenue: increment(form.salePrice),
+                    });
+                }
             });
 
-            if (!result.success) {
-                setError(result.message || 'Erro de validação de segurança no servidor.');
-                setSaving(false);
-                return;
-            }
-
-            // A venda já foi concluída e logada no backend!
-            // Agora só avisamos a UI (Notificação e Limpeza de Tela)
             await addNotification(
                 isAdmin ? profile?.uid || '' : 'admin_uid_placeholder',
                 'Venda Segura Registrada!',
-                `O produto ${product.name} foi validado no servidor e vendido por ${formatCurrency(form.salePrice)}.`,
+                `O produto ${product.name} foi vendido por ${formatCurrency(form.salePrice)}.`,
                 'success',
                 '/dashboard/vendas'
             );
@@ -166,9 +236,10 @@ export default function VendasPage() {
             setSuccess('Venda registrada com sucesso!');
             await fetchData();
             setTimeout(() => { setShowModal(false); setSuccess(''); }, 1500);
-        } catch (err) {
-            setError('Erro ao registrar venda');
-            console.error(err);
+        } catch (saveError) {
+            const message = saveError instanceof Error ? saveError.message : 'Erro ao registrar venda';
+            setError(message);
+            console.error(saveError);
         } finally {
             setSaving(false);
         }
@@ -178,8 +249,8 @@ export default function VendasPage() {
         try {
             await updateDoc(doc(db, 'sales', saleId), { status: newStatus });
             await fetchData();
-        } catch (err) {
-            console.error(err);
+        } catch (updateError) {
+            console.error(updateError);
         }
     }
 
@@ -219,7 +290,7 @@ export default function VendasPage() {
                 <div className="empty-state">
                     <ShoppingCart size={48} style={{ color: 'var(--text-muted)', marginBottom: 16 }} />
                     <h3>Nenhuma venda registrada</h3>
-                    <p>Clique em "Nova Venda" para registrar</p>
+                    <p>Clique em &quot;Nova Venda&quot; para registrar</p>
                 </div>
             ) : (
                 <div className="table-container">
@@ -280,7 +351,6 @@ export default function VendasPage() {
                 </div>
             )}
 
-            {/* Modal */}
             {showModal && (
                 <div className="modal-overlay" onClick={() => setShowModal(false)}>
                     <div className="modal glass-strong" onClick={(e) => e.stopPropagation()}>
@@ -295,12 +365,12 @@ export default function VendasPage() {
                             <div className="form-field">
                                 <label className="label">Produto *</label>
                                 <select className="input" value={form.productId} onChange={(e) => {
-                                    const p = products.find(x => x.id === e.target.value);
-                                    setForm({ ...form, productId: e.target.value, salePrice: p?.price || 0 });
+                                    const selectedProduct = products.find(x => x.id === e.target.value);
+                                    setForm({ ...form, productId: e.target.value, salePrice: selectedProduct?.price || 0 });
                                 }} required>
                                     <option value="">Selecione o produto</option>
                                     {products.map(p => (
-                                        <option key={p.id} value={p.id}>{p.name} — {p.brand} {p.model} ({formatCurrency(p.price)})</option>
+                                        <option key={p.id} value={p.id}>{p.name} - {p.brand} {p.model} ({formatCurrency(p.price)})</option>
                                     ))}
                                 </select>
                             </div>
