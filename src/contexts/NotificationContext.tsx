@@ -69,8 +69,6 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             return;
         }
 
-        setLoading(true);
-
         const q = query(
             collection(db, 'notifications'),
             where('userId', '==', profile.uid),
@@ -91,7 +89,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
     const markAsRead = async (id: string) => {
         if (!isFirebaseConfigured || demoMode) {
-            setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+            setNotifications(prev => (prev ?? []).map(n => n.id === id ? { ...n, read: true } : n));
             return;
         }
         await updateDoc(doc(db, 'notifications', id), { read: true });
@@ -99,11 +97,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
     const markAllAsRead = async () => {
         if (!isFirebaseConfigured || demoMode) {
-            setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+            setNotifications(prev => (prev ?? []).map(n => ({ ...n, read: true })));
             return;
         }
         const batch = writeBatch(db);
-        notifications.filter(n => !n.read).forEach(n => {
+        (notifications ?? []).filter(n => !n.read).forEach(n => {
             batch.update(doc(db, 'notifications', n.id), { read: true });
         });
         await batch.commit();
@@ -121,7 +119,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                 read: false,
                 createdAt: new Date()
             };
-            setNotifications(prev => [newNotif, ...prev]);
+            setNotifications(prev => [newNotif, ...(prev ?? [])]);
             return;
         }
         await addDoc(collection(db, 'notifications'), {
