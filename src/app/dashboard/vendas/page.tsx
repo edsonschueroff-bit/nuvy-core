@@ -136,93 +136,32 @@ export default function VendasPage() {
                 return;
             }
 
-            // 1.2 SECURITY CHECK: Verify if product is still available in DB
-            const updatedProductSnap = await getDoc(doc(db, 'products', product.id));
-            if (!updatedProductSnap.exists() || (updatedProductSnap.data().status !== 'disponivel' && updatedProductSnap.data().status !== 'anunciado')) {
-                setError('Este produto já não está mais disponível para venda.');
+            // =========== 1. NOVO FLUXO SEGURO (SERVER ACTION) ===========
+            // Em vez de calcular no frontend, passamos a responsabilidade pro Backend
+            const { createSaleTransaction } = await import('@/app/actions/sales');
+            const result = await createSaleTransaction({
+                productId: product.id,
+                marketplace: form.marketplace,
+                salePrice: form.salePrice,
+                buyerName: form.buyerName,
+                adminId: profile?.uid || 'unknown'
+            });
+
+            if (!result.success) {
+                setError(result.message || 'Erro de validação de segurança no servidor.');
                 setSaving(false);
                 return;
             }
 
-            // Get partner commission rate
-            const partnerDoc = await getDoc(doc(db, 'partners', product.partnerId));
-            const commissionRate = partnerDoc.exists() ? partnerDoc.data().commissionRate : 20;
-            const commissionValue = form.salePrice * (commissionRate / 100);
-            const partnerValue = form.salePrice - commissionValue;
-
-            // Create sale
-            await addDoc(collection(db, 'sales'), {
-                productId: product.id,
-                productName: product.name,
-                partnerId: product.partnerId,
-                partnerName: product.partnerName,
-                marketplace: form.marketplace,
-                salePrice: form.salePrice,
-                commissionRate,
-                commissionValue,
-                partnerValue,
-                buyerName: form.buyerName,
-                status: 'pendente',
-                saleDate: serverTimestamp(),
-                createdAt: serverTimestamp(),
-            });
-
-            // Trigger notification
+            // A venda já foi concluída e logada no backend!
+            // Agora só avisamos a UI (Notificação e Limpeza de Tela)
             await addNotification(
-                isAdmin ? profile?.uid || '' : 'admin_uid_placeholder', // Should be specific Admin ID in production
-                'Nova Venda Registrada!',
-                `O produto ${product.name} foi vendido no ${form.marketplace} por ${formatCurrency(form.salePrice)}.`,
+                isAdmin ? profile?.uid || '' : 'admin_uid_placeholder',
+                'Venda Segura Registrada!',
+                `O produto ${product.name} foi validado no servidor e vendido por ${formatCurrency(form.salePrice)}.`,
                 'success',
                 '/dashboard/vendas'
             );
-
-            // Update product quantity/status
-            const currentQuantity = product.quantity || 1;
-            const newQuantity = currentQuantity - 1;
-
-            if (newQuantity <= 0) {
-                await updateDoc(doc(db, 'products', product.id), {
-                    status: 'vendido',
-                    quantity: 0
-                });
-            } else {
-                await updateDoc(doc(db, 'products', product.id), {
-                    quantity: newQuantity
-                });
-            }
-
-            // Update partner stats
-            await updateDoc(doc(db, 'partners', product.partnerId), {
-                totalSold: increment(1),
-                // totalRevenue: increment(form.salePrice), // We will avoid relying solely on this field in the future
-            });
-
-            // 1.5 CREATE FINANCIAL TRANSACTION (LEDGER)
-            await addDoc(collection(db, 'transactions'), {
-                type: 'SALE',
-                partnerId: product.partnerId,
-                partnerName: product.partnerName,
-                productId: product.id,
-                productName: product.name,
-                grossValue: form.salePrice,
-                commissionValue: commissionValue,
-                netPartnerValue: partnerValue,
-                description: `Venda via ${form.marketplace} - Comprador: ${form.buyerName}`,
-                createdAt: serverTimestamp(),
-            });
-
-            // 1.8 AUDIT LOG
-            await addDoc(collection(db, 'logs'), {
-                action: 'NEW_SALE',
-                productId: product.id,
-                productName: product.name,
-                partnerId: product.partnerId,
-                marketplace: form.marketplace,
-                salePrice: form.salePrice,
-                userId: profile?.uid,
-                userName: profile?.name,
-                createdAt: serverTimestamp(),
-            });
 
             setSuccess('Venda registrada com sucesso!');
             await fetchData();
