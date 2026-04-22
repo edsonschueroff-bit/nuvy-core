@@ -361,9 +361,4 @@ body {
   animation: fadeIn 0.4s ease-out;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  :root {
-    --sidebar-width: 0px;
-  }
-}
+/* Responsive (managed in components) */

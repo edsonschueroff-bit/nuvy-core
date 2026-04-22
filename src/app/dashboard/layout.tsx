@@ -454,6 +454,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           @media (max-width: 768px) {
             .sidebar {
               transform: translateX(-100%);
+              width: 280px;
+              background: var(--bg-card); /* Less transparent on mobile */
+              box-shadow: 5px 0 25px rgba(0,0,0,0.5);
             }
 
             .sidebar-open {
