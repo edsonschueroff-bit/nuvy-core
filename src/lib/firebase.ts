@@ -1,3 +1,4 @@
+// Force cache bust to recognize Env vars
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
 import { initializeFirestore, Firestore } from 'firebase/firestore';

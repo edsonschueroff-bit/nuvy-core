@@ -1,4 +1,5 @@
 'use client';
+// Force Vercel cache rebuild for env variables
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
