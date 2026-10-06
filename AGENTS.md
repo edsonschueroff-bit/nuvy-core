@@ -19,6 +19,8 @@ Before changing code:
 
 - **Notion:** architecture, decisions, tasks, status, acceptance criteria and operator approvals.
 - **GitHub:** executable engineering rules, policies, skills, code and review evidence.
+- **VPS operational catalog:** `docs/agent/VPS-OPERATIONAL-CATALOG.md` records the central
+  agent inventory observed on the VPS and must be preserved during adoption work.
 
 If they conflict, stop and resolve the conflict. Do not guess.
 
@@ -52,3 +54,12 @@ This version of Next.js may contain breaking changes relative to model training 
 - `GEMINI.md` delegates to this file and the same operating standard.
 
 Do not duplicate the NuvyCore constitution across adapter files.
+
+
+## VPS reconciliation note
+
+This repository contains the standard entry point and governance documents. The live VPS
+currently has a richer central AG Kit catalog than this bootstrap branch. Any future sync
+from this branch to `/opt/nuvycore` must be additive and must preserve the useful catalog,
+rules, skills, workflows, memory and adapters documented in
+`docs/agent/VPS-OPERATIONAL-CATALOG.md`.
