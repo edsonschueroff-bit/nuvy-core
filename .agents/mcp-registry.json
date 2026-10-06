@@ -1,0 +1,315 @@
+{
+  "schema_version": 1,
+  "policy": {
+    "default_mode": "read_only",
+    "production_requires_approval": true,
+    "secrets_in_repo": false,
+    "cora_critical_path_locked_until_text_read_steady_state": true,
+    "required_controls": [
+      "tool_allowlist",
+      "timeout",
+      "rate_limit",
+      "audit_log",
+      "revocation_plan",
+      "cost_guard_when_billable"
+    ]
+  },
+  "mcps": [
+    {
+      "id": "github",
+      "name": "GitHub",
+      "phase": "F1",
+      "priority": "P0",
+      "origin": "official",
+      "permissions": [
+        "READ",
+        "WRITE_REVIEW"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "notion",
+      "name": "Notion",
+      "phase": "F1",
+      "priority": "P0",
+      "origin": "official",
+      "permissions": [
+        "READ",
+        "WRITE_DOCS"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "sentry",
+      "name": "Sentry",
+      "phase": "F1",
+      "priority": "P0",
+      "origin": "official",
+      "permissions": [
+        "READ",
+        "OBSERVABILITY"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "context7",
+      "name": "Context7",
+      "phase": "F1",
+      "priority": "P0",
+      "origin": "candidate",
+      "permissions": [
+        "READ",
+        "DOCS"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "postman",
+      "name": "Postman",
+      "phase": "F1",
+      "priority": "P0",
+      "origin": "official",
+      "permissions": [
+        "READ",
+        "API_TEST"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "meta-whatsapp-business-tools",
+      "name": "WhatsApp Business Tools",
+      "phase": "F2",
+      "priority": "P0",
+      "origin": "official",
+      "permissions": [
+        "READ",
+        "MESSAGING"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "noveum",
+      "name": "Noveum",
+      "phase": "F2",
+      "priority": "P0",
+      "origin": "candidate",
+      "permissions": [
+        "READ",
+        "EVALS"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "testdriver",
+      "name": "TestDriver",
+      "phase": "F2",
+      "priority": "P0",
+      "origin": "candidate",
+      "permissions": [
+        "STAGING",
+        "TEST"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "solidping",
+      "name": "SolidPing",
+      "phase": "F2",
+      "priority": "P0",
+      "origin": "candidate",
+      "permissions": [
+        "READ",
+        "OBSERVABILITY"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "verifymcp",
+      "name": "VerifyMCP",
+      "phase": "F3",
+      "priority": "P1",
+      "origin": "candidate",
+      "permissions": [
+        "READ",
+        "SECURITY"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "agentglass",
+      "name": "AgentGlass",
+      "phase": "F3",
+      "priority": "P1",
+      "origin": "candidate",
+      "permissions": [
+        "READ",
+        "SECURITY"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "promptbrake",
+      "name": "PromptBrake",
+      "phase": "F3",
+      "priority": "P1",
+      "origin": "candidate",
+      "permissions": [
+        "TEST",
+        "SECURITY"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "openrouter",
+      "name": "OpenRouter",
+      "phase": "F4",
+      "priority": "P1",
+      "origin": "official_or_verified_candidate",
+      "permissions": [
+        "READ",
+        "MODEL_INTELLIGENCE",
+        "BILLABLE"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "tavily",
+      "name": "Tavily",
+      "phase": "F4",
+      "priority": "P1",
+      "origin": "official_or_verified_candidate",
+      "permissions": [
+        "READ",
+        "WEB_RESEARCH",
+        "BILLABLE"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "posthog",
+      "name": "PostHog",
+      "phase": "F4",
+      "priority": "P1",
+      "origin": "official_or_verified_candidate",
+      "permissions": [
+        "READ",
+        "ANALYTICS"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "cloudflare",
+      "name": "Cloudflare",
+      "phase": "F4",
+      "priority": "P1",
+      "origin": "official",
+      "permissions": [
+        "READ",
+        "INFRA"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "figma",
+      "name": "Figma",
+      "phase": "F5",
+      "priority": "P2",
+      "origin": "official",
+      "permissions": [
+        "READ",
+        "DESIGN"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "canva",
+      "name": "Canva",
+      "phase": "F5",
+      "priority": "P2",
+      "origin": "official",
+      "permissions": [
+        "READ",
+        "MARKETING"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "meta-ads",
+      "name": "Meta Ads",
+      "phase": "F5",
+      "priority": "P2",
+      "origin": "candidate",
+      "permissions": [
+        "READ",
+        "ADS",
+        "FINANCIAL"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "google-ads",
+      "name": "Google Ads",
+      "phase": "F5",
+      "priority": "P2",
+      "origin": "candidate",
+      "permissions": [
+        "READ",
+        "ADS",
+        "FINANCIAL"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "ahrefs",
+      "name": "Ahrefs",
+      "phase": "F5",
+      "priority": "P2",
+      "origin": "candidate",
+      "permissions": [
+        "READ",
+        "SEO",
+        "BILLABLE"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "google-search-console",
+      "name": "Google Search Console",
+      "phase": "F5",
+      "priority": "P2",
+      "origin": "candidate",
+      "permissions": [
+        "READ",
+        "SEO"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "br-intelligence",
+      "name": "BR Intelligence",
+      "phase": "F5",
+      "priority": "P2",
+      "origin": "candidate",
+      "permissions": [
+        "READ",
+        "FINANCIAL",
+        "SENSITIVE",
+        "BILLABLE"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "assinafy",
+      "name": "Assinafy",
+      "phase": "F5",
+      "priority": "P2",
+      "origin": "candidate",
+      "permissions": [
+        "READ",
+        "DOCUMENTS",
+        "LEGAL"
+      ],
+      "status": "planned"
+    }
+  ]
+}
