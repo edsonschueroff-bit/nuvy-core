@@ -12,6 +12,9 @@ Identify the canonical project and task in Notion. Record:
 
 If there is no canonical task for a non-trivial change, stop and create/confirm one before implementation.
 
+For VPS adoption or sync tasks, also read `docs/agent/VPS-OPERATIONAL-CATALOG.md`
+before proposing file changes. The VPS catalog is not disposable bootstrap state.
+
 ## 2. Establish execution scope
 Before editing, state internally:
 - repository and branch;
@@ -37,6 +40,11 @@ Do not load unrelated historical documentation unless the canonical task require
 
 ## 4. Work in isolation
 Use one task = one branch = one worktree. Do not let multiple agents edit the same checkout.
+
+For NuvyCore central adoption, do not overwrite `.agents/`, `.agent/`, `.claude/`,
+`CLAUDE.md` or the VPS root `AGENTS.md` by directory mirroring. Reconcile file-by-file
+and preserve existing operational knowledge unless a canonical task explicitly approves
+its removal.
 
 ## 5. Execute and verify
 Make the smallest complete change. Run the tests required by the task and by `.agents/policies/review.md`.
